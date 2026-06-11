@@ -1,0 +1,96 @@
+name: travel-search-engine
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tse-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tse_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tse_password}
+      POSTGRES_DB: ${POSTGRES_DB:-travel_search}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tse_user} -d ${POSTGRES_DB:-travel_search}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tse-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tse-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tse-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: tse-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tse_user}:${POSTGRES_PASSWORD:-tse_password}@postgres:5432/${POSTGRES_DB:-travel_search}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tse-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: tse-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      # Host port 3001: 3000 is commonly taken by other tools (e.g. Grafana).
+      - "3001:3000"
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - tse-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  frontend_node_modules:
+
+networks:
+  tse-network:
+    driver: bridge

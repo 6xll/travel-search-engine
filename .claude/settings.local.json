@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m compileall -q app)",
+      "Bash(python3 -c \"import pydantic, sqlalchemy\")",
+      "Bash(python3 -)",
+      "Bash(docker compose *)",
+      "Bash(awk '{print $2, $3\"%\", substr\\($0, index\\($0,$11\\), 80\\)}')",
+      "Bash(kill 7541)",
+      "Bash(osascript -e 'quit app \"Docker\"')",
+      "Bash(open -a Docker)",
+      "Bash(docker info *)",
+      "Bash(pkill -9 -f \"Docker.app\")",
+      "Bash(grep -viE '^\\\\s*$')",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(python3 -c \"import pytest_asyncio\")",
+      "Bash(pip install *)",
+      "Bash(python3 -m pytest -q)",
+      "Bash(curl -s http://localhost:8000/cities)",
+      "Bash(python3 -c \"import json,sys; cities=json.load\\(sys.stdin\\); print\\(len\\(cities\\), 'cities:', ', '.join\\(sorted\\(c['name'] for c in cities\\)[:6]\\) + '...'\\)\")",
+      "Bash(curl -s -X POST http://localhost:8000/search -H 'Content-Type: application/json' -d '{\"origin\":\"Porto\",\"destination\":\"Lisbon\",\"departure_date\":\"2026-07-15\"}')",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"frontend HTTP %{http_code}\\\\n\" http://localhost:3001)",
+      "Bash(curl -s http://localhost:3001)",
+      "Bash(git --version)",
+      "Bash(git config *)",
+      "Bash(gh auth *)"
+    ]
+  }
+}
