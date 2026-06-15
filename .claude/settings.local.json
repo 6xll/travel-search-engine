@@ -25,7 +25,12 @@
       "Bash(curl -s http://localhost:3001)",
       "Bash(git --version)",
       "Bash(git config *)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Add comprehensive README *)",
+      "Bash(git push *)",
+      "Bash(curl -s -m 5 http://localhost:8000/health)"
     ]
   }
 }
