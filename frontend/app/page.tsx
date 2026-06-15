@@ -3,12 +3,15 @@
 import { ArrowRight, PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { JourneyResults, SearchBanner } from "@/components/journey";
+import { JourneyResults, RouteMap, SearchBanner } from "@/components/journey";
 import type { Journey as UIJourney, SearchValues } from "@/components/journey";
 import { adaptJourney } from "@/lib/adaptJourney";
 import { ApiError, getCities, searchJourneys } from "@/lib/api";
-import { KNOWN_CITIES } from "@/lib/cities";
-import type { Journey as ApiJourney, SearchResult } from "@/lib/types";
+import type {
+  City,
+  Journey as ApiJourney,
+  SearchResult,
+} from "@/lib/types";
 
 const DEFAULT_SEARCH: SearchValues = {
   origin: "Porto",
@@ -43,15 +46,21 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [cities, setCities] = useState<readonly string[]>(KNOWN_CITIES);
+  const [cities, setCities] = useState<City[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     getCities()
-      .then((fetched) => setCities(fetched.map((city) => city.name).sort()))
+      .then(setCities)
       .catch(() => {
-        /* keep static fallback when the backend is unreachable */
+        /* map simply stays at its default view if cities are unavailable */
       });
   }, []);
+
+  const cityNames = useMemo(
+    () => cities.map((city) => city.name).sort(),
+    [cities],
+  );
 
   const handleSearch = useCallback(async (values: SearchValues) => {
     setIsLoading(true);
@@ -89,6 +98,7 @@ export default function HomePage() {
       ]);
       setOutbound(outboundResult);
       setInbound(inboundResult);
+      setActiveId(outboundResult.journeys[0]?.id ?? null);
     } catch (caught) {
       setOutbound(null);
       setInbound(null);
@@ -114,61 +124,88 @@ export default function HomePage() {
   const inboundLeg = useMemo(() => adaptLeg(inbound), [inbound]);
   const isRoundTrip = lastSearch?.tripType === "round_trip";
 
+  const activeJourney = useMemo(
+    () =>
+      [...outboundLeg.journeys, ...inboundLeg.journeys].find(
+        (journey) => journey.id === activeId,
+      ) ?? null,
+    [outboundLeg, inboundLeg, activeId],
+  );
+
+  const handleActivate = useCallback(
+    (journey: UIJourney) => setActiveId(journey.id),
+    [],
+  );
+
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
-      <header className="mb-8 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+      <header className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
           Every way there, in one search
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-sm text-slate-500 sm:text-base">
-          Flights, trains, and buses — automatically combined into the best
-          door-to-door journey, ranked by a transparent score.
+        <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
+          Flights, trains, and buses — combined into the best door-to-door
+          journey, ranked by a transparent score.
         </p>
       </header>
 
       <SearchBanner
-        cities={cities}
+        cities={cityNames}
         defaultValues={DEFAULT_SEARCH}
         onSearch={handleSearch}
       />
 
-      <section className="mt-8 space-y-10">
-        <JourneyResults
-          journeys={outboundLeg.journeys}
-          currencyFor={outboundLeg.currencyFor}
-          isLoading={isLoading}
-          error={error}
-          hasSearched={hasSearched}
-          heading={
-            isRoundTrip && lastSearch ? (
-              <LegHeading
-                Icon={PlaneTakeoff}
-                label="Outbound"
-                from={lastSearch.origin}
-                to={lastSearch.destination}
-              />
-            ) : undefined
-          }
-        />
-
-        {isRoundTrip && lastSearch && (
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+        {/* Results — left column */}
+        <div className="order-2 space-y-10 lg:order-1">
           <JourneyResults
-            journeys={inboundLeg.journeys}
-            currencyFor={inboundLeg.currencyFor}
+            journeys={outboundLeg.journeys}
+            currencyFor={outboundLeg.currencyFor}
             isLoading={isLoading}
             error={error}
             hasSearched={hasSearched}
+            activeId={activeId}
+            onActivate={handleActivate}
             heading={
-              <LegHeading
-                Icon={PlaneLanding}
-                label="Return"
-                from={lastSearch.destination}
-                to={lastSearch.origin}
-              />
+              isRoundTrip && lastSearch ? (
+                <LegHeading
+                  Icon={PlaneTakeoff}
+                  label="Outbound"
+                  from={lastSearch.origin}
+                  to={lastSearch.destination}
+                />
+              ) : undefined
             }
           />
-        )}
-      </section>
+
+          {isRoundTrip && lastSearch && (
+            <JourneyResults
+              journeys={inboundLeg.journeys}
+              currencyFor={inboundLeg.currencyFor}
+              isLoading={isLoading}
+              error={error}
+              hasSearched={hasSearched}
+              activeId={activeId}
+              onActivate={handleActivate}
+              heading={
+                <LegHeading
+                  Icon={PlaneLanding}
+                  label="Return"
+                  from={lastSearch.destination}
+                  to={lastSearch.origin}
+                />
+              }
+            />
+          )}
+        </div>
+
+        {/* Map — right column, sticky on desktop */}
+        <div className="order-1 lg:order-2">
+          <div className="h-72 overflow-hidden rounded-2xl border border-slate-200 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-7rem)]">
+            <RouteMap cities={cities} journey={activeJourney} />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

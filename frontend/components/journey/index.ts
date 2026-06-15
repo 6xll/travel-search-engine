@@ -1,6 +1,7 @@
 export { SearchBanner } from "./SearchBanner";
 export { JourneyCard } from "./JourneyCard";
 export { JourneyResults } from "./JourneyResults";
+export { RouteMap } from "./RouteMap";
 export { JourneyTimeline } from "./JourneyTimeline";
 export { ScoreBadge } from "./ScoreBadge";
 export { TransportMinimap } from "./TransportMinimap";

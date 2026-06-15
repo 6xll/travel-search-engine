@@ -13,6 +13,8 @@ interface JourneyResultsProps {
   error: string | null;
   hasSearched: boolean;
   heading?: ReactNode;
+  activeId?: string | null;
+  onActivate?: (journey: Journey) => void;
 }
 
 function SkeletonCard() {
@@ -40,6 +42,8 @@ export function JourneyResults({
   error,
   hasSearched,
   heading,
+  activeId,
+  onActivate,
 }: JourneyResultsProps) {
   function frame(children: ReactNode) {
     return (
@@ -103,8 +107,10 @@ export function JourneyResults({
           key={journey.id}
           journey={journey}
           isBest={index === 0}
+          isActive={activeId === journey.id}
           defaultOpen={index === 0}
           currency={currencyFor?.(journey)}
+          onActivate={onActivate}
         />
       ))}
     </div>,

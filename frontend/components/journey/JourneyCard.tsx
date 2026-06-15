@@ -13,16 +13,21 @@ interface JourneyCardProps {
   journey: Journey;
   /** Highlight as the top-ranked result. */
   isBest?: boolean;
+  /** Currently selected on the map. */
+  isActive?: boolean;
   defaultOpen?: boolean;
   currency?: string;
+  onActivate?: (journey: Journey) => void;
   onSelect?: (journey: Journey) => void;
 }
 
 export function JourneyCard({
   journey,
   isBest = false,
+  isActive = false,
   defaultOpen = false,
   currency = "EUR",
+  onActivate,
   onSelect,
 }: JourneyCardProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -42,9 +47,11 @@ export function JourneyCard({
   return (
     <article
       className={`group overflow-hidden rounded-2xl border bg-white transition duration-200 ${
-        isBest
-          ? "border-emerald-300 ring-1 ring-emerald-500/40"
-          : "border-slate-200"
+        isActive
+          ? "border-indigo-400 ring-2 ring-indigo-500/40"
+          : isBest
+            ? "border-emerald-300 ring-1 ring-emerald-500/40"
+            : "border-slate-200"
       } hover:border-slate-300 hover:shadow-lg hover:shadow-slate-900/5`}
     >
       {isBest && (
@@ -54,9 +61,12 @@ export function JourneyCard({
         </div>
       )}
 
-      {/* Header — pointer toggles expand; chevron button is the a11y control. */}
+      {/* Header — pointer toggles expand + activates on the map. */}
       <div
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => !value);
+          onActivate?.(journey);
+        }}
         className="flex cursor-pointer items-start justify-between gap-4 p-5"
       >
         <div className="min-w-0 flex-1">
