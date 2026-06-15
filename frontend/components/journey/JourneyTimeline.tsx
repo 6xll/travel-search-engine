@@ -1,6 +1,7 @@
 import { Fragment } from "react";
-import { Clock } from "lucide-react";
+import { Clock, ExternalLink } from "lucide-react";
 
+import { bookingLink } from "./booking";
 import { formatDuration, formatTime, minutesBetween } from "./format";
 import { MODE_META } from "./mode-meta";
 import type { RouteSegment } from "./types";
@@ -45,6 +46,11 @@ export function JourneyTimeline({ segments }: JourneyTimelineProps) {
           </Fragment>
         );
       })}
+
+      <p className="mt-3 pl-[2.75rem] text-xs leading-relaxed text-slate-400">
+        Prices and times are simulated. Each leg links to a live search for that
+        route on a real provider.
+      </p>
     </div>
   );
 }
@@ -108,8 +114,24 @@ function TransitLeg({ segment }: { segment: RouteSegment }) {
         <span className="text-xs tabular-nums text-slate-500">
           {formatDuration(duration)}
         </span>
+        <BookingLink segment={segment} />
       </div>
     </div>
+  );
+}
+
+function BookingLink({ segment }: { segment: RouteSegment }) {
+  const { url, provider } = bookingLink(segment);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+    >
+      Find on {provider}
+      <ExternalLink className="size-3" aria-hidden />
+    </a>
   );
 }
 
