@@ -45,6 +45,7 @@ export interface SearchValues {
   returnDate: string; // yyyy-mm-dd (used when tripType === "round_trip")
   tripType: TripType;
   flexibleDays: number; // 0-3
+  maxBudget: number | null; // per-passenger cap; null = no limit
   passengers: number;
   preference: SearchPreference;
 }

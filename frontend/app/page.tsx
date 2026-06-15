@@ -17,6 +17,7 @@ const DEFAULT_SEARCH: SearchValues = {
   returnDate: new Date(Date.now() + 37 * 86_400_000).toISOString().slice(0, 10),
   tripType: "one_way",
   flexibleDays: 0,
+  maxBudget: null,
   passengers: 1,
   preference: "balanced",
 };
@@ -62,6 +63,9 @@ export default function HomePage() {
         passengers: values.passengers,
         preference: values.preference,
         flexible_days: values.flexibleDays,
+        ...(values.maxBudget != null && {
+          max_budget: values.maxBudget.toFixed(2),
+        }),
       };
       const outboundPromise = searchJourneys({
         ...base,

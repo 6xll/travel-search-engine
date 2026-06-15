@@ -10,6 +10,7 @@ import {
   Repeat,
   Search,
   Users,
+  Wallet,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -61,6 +62,9 @@ export function SearchBanner({
   const [flexibleDays, setFlexibleDays] = useState(
     defaultValues?.flexibleDays ?? 0,
   );
+  const [maxBudget, setMaxBudget] = useState(
+    defaultValues?.maxBudget != null ? String(defaultValues.maxBudget) : "",
+  );
   const [passengers, setPassengers] = useState(defaultValues?.passengers ?? 1);
   const [preference, setPreference] = useState<SearchPreference>(
     defaultValues?.preference ?? "balanced",
@@ -77,6 +81,7 @@ export function SearchBanner({
   }
 
   function submit() {
+    const parsedBudget = Number(maxBudget);
     onSearch?.({
       origin,
       destination,
@@ -84,6 +89,7 @@ export function SearchBanner({
       returnDate,
       tripType,
       flexibleDays,
+      maxBudget: maxBudget !== "" && parsedBudget > 0 ? parsedBudget : null,
       passengers,
       preference,
     });
@@ -163,6 +169,23 @@ export function SearchBanner({
               </option>
             ))}
           </select>
+        </FieldShell>
+
+        <FieldShell label="Max budget" Icon={Wallet} htmlFor="max-budget">
+          <div className="flex items-baseline gap-1">
+            <span className="text-sm font-medium text-slate-400">€</span>
+            <input
+              id="max-budget"
+              type="number"
+              min="1"
+              step="10"
+              inputMode="numeric"
+              value={maxBudget}
+              onChange={(event) => setMaxBudget(event.target.value)}
+              placeholder="Any"
+              className="w-full bg-transparent text-sm font-medium text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
         </FieldShell>
 
         <PassengerStepper value={passengers} onChange={setPassengers} />
