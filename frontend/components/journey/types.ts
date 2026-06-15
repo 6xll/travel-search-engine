@@ -36,10 +36,15 @@ export interface Journey {
 
 export type SearchPreference = "balanced" | "cheapest" | "fastest";
 
+export type TripType = "one_way" | "round_trip";
+
 export interface SearchValues {
   origin: string;
   destination: string;
   date: string; // yyyy-mm-dd
+  returnDate: string; // yyyy-mm-dd (used when tripType === "round_trip")
+  tripType: TripType;
+  flexibleDays: number; // 0-3
   passengers: number;
   preference: SearchPreference;
 }

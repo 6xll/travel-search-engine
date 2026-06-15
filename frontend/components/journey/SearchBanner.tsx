@@ -3,23 +3,20 @@
 import {
   ArrowLeftRight,
   CalendarDays,
+  CalendarRange,
   Gauge,
+  MoveRight,
   PiggyBank,
+  Repeat,
   Search,
   Users,
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { CitySelect } from "./CitySelect";
-import type { SearchPreference, SearchValues } from "./types";
+import type { SearchPreference, SearchValues, TripType } from "./types";
 
 interface SearchBannerProps {
   cities: readonly string[];
@@ -34,7 +31,14 @@ const PREFERENCES: { value: SearchPreference; label: string; Icon: LucideIcon }[
     { value: "fastest", label: "Fastest", Icon: Zap },
   ];
 
-function tomorrowPlus(days: number): string {
+const FLEX_OPTIONS = [
+  { value: 0, label: "Exact date" },
+  { value: 1, label: "± 1 day" },
+  { value: 2, label: "± 2 days" },
+  { value: 3, label: "± 3 days" },
+];
+
+function todayPlus(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
@@ -46,14 +50,26 @@ export function SearchBanner({
   onSearch,
 }: SearchBannerProps) {
   const [origin, setOrigin] = useState(defaultValues?.origin ?? "");
-  const [destination, setDestination] = useState(
-    defaultValues?.destination ?? "",
+  const [destination, setDestination] = useState(defaultValues?.destination ?? "");
+  const [date, setDate] = useState(defaultValues?.date ?? todayPlus(30));
+  const [returnDate, setReturnDate] = useState(
+    defaultValues?.returnDate ?? todayPlus(37),
   );
-  const [date, setDate] = useState(defaultValues?.date ?? tomorrowPlus(30));
+  const [tripType, setTripType] = useState<TripType>(
+    defaultValues?.tripType ?? "one_way",
+  );
+  const [flexibleDays, setFlexibleDays] = useState(
+    defaultValues?.flexibleDays ?? 0,
+  );
   const [passengers, setPassengers] = useState(defaultValues?.passengers ?? 1);
   const [preference, setPreference] = useState<SearchPreference>(
     defaultValues?.preference ?? "balanced",
   );
+
+  // Keep the return date on or after the outbound date.
+  useEffect(() => {
+    if (returnDate < date) setReturnDate(date);
+  }, [date, returnDate]);
 
   function swap() {
     setOrigin(destination);
@@ -61,80 +77,104 @@ export function SearchBanner({
   }
 
   function submit() {
-    onSearch?.({ origin, destination, date, passengers, preference });
+    onSearch?.({
+      origin,
+      destination,
+      date,
+      returnDate,
+      tripType,
+      flexibleDays,
+      passengers,
+      preference,
+    });
   }
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/5">
-      {/* Preference: trip-defining toggle, sits above the field row. */}
-      <div className="mb-3 px-1">
-        <SegmentedControl
-          options={PREFERENCES}
-          value={preference}
-          onChange={setPreference}
-        />
+      {/* Options strip: trip type (left) + ranking preference (right). */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+        <TripTypeToggle value={tripType} onChange={setTripType} />
+        <SegmentedPreference value={preference} onChange={setPreference} />
       </div>
 
-      {/* Field row: floating pill of fields divided by hairlines. */}
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch lg:gap-0 lg:divide-x lg:divide-slate-200">
-        <div className="relative flex items-center lg:flex-[1.2]">
-          <div className="flex-1">
-            <CitySelect
-              label="From"
-              value={origin}
-              cities={cities}
-              onChange={setOrigin}
-              placeholder="Origin"
-            />
-          </div>
-          {/* Swap sits on the divider between From and To. */}
+      {/* Field row: wraps gracefully as fields are added. */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        <div className="flex min-w-[260px] flex-1 items-stretch gap-2">
+          <CitySelect
+            label="From"
+            value={origin}
+            cities={cities}
+            onChange={setOrigin}
+            placeholder="Origin"
+            className="flex-1"
+          />
           <button
             type="button"
             onClick={swap}
             aria-label="Swap origin and destination"
-            className="z-10 hidden size-8 shrink-0 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 lg:flex"
+            className="flex w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
-            <ArrowLeftRight className="size-3.5" aria-hidden />
+            <ArrowLeftRight className="size-4" aria-hidden />
           </button>
-        </div>
-
-        <div className="lg:flex-[1.2] lg:pl-2">
           <CitySelect
             label="To"
             value={destination}
             cities={cities}
             onChange={setDestination}
             placeholder="Destination"
+            className="flex-1"
           />
         </div>
 
-        <div className="lg:pl-2">
-          <FieldShell label="When" Icon={CalendarDays} htmlFor="search-date">
+        <FieldShell label="Depart" Icon={CalendarDays} htmlFor="depart-date">
+          <input
+            id="depart-date"
+            type="date"
+            value={date}
+            min={todayPlus(0)}
+            onChange={(event) => setDate(event.target.value)}
+            className="w-full bg-transparent text-sm font-medium text-slate-900 focus:outline-none [color-scheme:light]"
+          />
+        </FieldShell>
+
+        {tripType === "round_trip" && (
+          <FieldShell label="Return" Icon={CalendarDays} htmlFor="return-date">
             <input
-              id="search-date"
+              id="return-date"
               type="date"
-              value={date}
-              min={tomorrowPlus(0)}
-              onChange={(event) => setDate(event.target.value)}
+              value={returnDate}
+              min={date}
+              onChange={(event) => setReturnDate(event.target.value)}
               className="w-full bg-transparent text-sm font-medium text-slate-900 focus:outline-none [color-scheme:light]"
             />
           </FieldShell>
-        </div>
+        )}
 
-        <div className="lg:pl-2">
-          <PassengerStepper value={passengers} onChange={setPassengers} />
-        </div>
-
-        <div className="flex items-stretch lg:pl-3">
-          <button
-            type="button"
-            onClick={submit}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 lg:w-auto"
+        <FieldShell label="Flexibility" Icon={CalendarRange} htmlFor="flex-days">
+          <select
+            id="flex-days"
+            value={flexibleDays}
+            onChange={(event) => setFlexibleDays(Number(event.target.value))}
+            className="w-full cursor-pointer bg-transparent text-sm font-medium text-slate-900 focus:outline-none"
           >
-            <Search className="size-4" aria-hidden />
-            <span>Search</span>
-          </button>
-        </div>
+            {FLEX_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FieldShell>
+
+        <PassengerStepper value={passengers} onChange={setPassengers} />
+
+        <button
+          type="button"
+          onClick={submit}
+          className="inline-flex min-w-[120px] flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:flex-none"
+        >
+          <Search className="size-4" aria-hidden />
+          <span>Search</span>
+        </button>
       </div>
     </div>
   );
@@ -151,7 +191,7 @@ function FieldShell({ label, Icon, htmlFor, children }: FieldShellProps) {
   return (
     <label
       htmlFor={htmlFor}
-      className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 transition hover:bg-slate-50 focus-within:bg-slate-50"
+      className="flex min-w-[140px] cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2 transition hover:border-slate-300 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20"
     >
       <Icon className="size-4 shrink-0 text-slate-400" aria-hidden />
       <span className="min-w-0 flex-1">
@@ -164,17 +204,21 @@ function FieldShell({ label, Icon, htmlFor, children }: FieldShellProps) {
   );
 }
 
-interface SegmentedControlProps {
-  options: { value: SearchPreference; label: string; Icon: LucideIcon }[];
-  value: SearchPreference;
-  onChange: (value: SearchPreference) => void;
-}
-
-function SegmentedControl({ options, value, onChange }: SegmentedControlProps) {
+function TripTypeToggle({
+  value,
+  onChange,
+}: {
+  value: TripType;
+  onChange: (value: TripType) => void;
+}) {
+  const options: { value: TripType; label: string; Icon: LucideIcon }[] = [
+    { value: "one_way", label: "One way", Icon: MoveRight },
+    { value: "round_trip", label: "Round trip", Icon: Repeat },
+  ];
   return (
     <div
       role="radiogroup"
-      aria-label="Ranking preference"
+      aria-label="Trip type"
       className="inline-flex gap-1 rounded-xl bg-slate-100 p-1"
     >
       {options.map(({ value: optionValue, label, Icon }) => {
@@ -204,12 +248,53 @@ function SegmentedControl({ options, value, onChange }: SegmentedControlProps) {
   );
 }
 
-interface PassengerStepperProps {
-  value: number;
-  onChange: (value: number) => void;
+function SegmentedPreference({
+  value,
+  onChange,
+}: {
+  value: SearchPreference;
+  onChange: (value: SearchPreference) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Ranking preference"
+      className="inline-flex gap-1 rounded-xl bg-slate-100 p-1"
+    >
+      {PREFERENCES.map(({ value: optionValue, label, Icon }) => {
+        const active = value === optionValue;
+        return (
+          <button
+            key={optionValue}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(optionValue)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              active
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Icon
+              className={`size-3.5 ${active ? "text-indigo-600" : "text-slate-400"}`}
+              aria-hidden
+            />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-function PassengerStepper({ value, onChange }: PassengerStepperProps) {
+function PassengerStepper({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverId = useId();
@@ -228,14 +313,14 @@ function PassengerStepper({ value, onChange }: PassengerStepperProps) {
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative min-w-[140px]">
       <button
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={popoverId}
         onClick={() => setOpen((open) => !open)}
-        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="flex w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         <Users className="size-4 shrink-0 text-slate-400" aria-hidden />
         <span>
@@ -283,14 +368,17 @@ function PassengerStepper({ value, onChange }: PassengerStepperProps) {
   );
 }
 
-interface StepButtonProps {
+function StepButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
   label: string;
   disabled: boolean;
   onClick: () => void;
   children: ReactNode;
-}
-
-function StepButton({ label, disabled, onClick, children }: StepButtonProps) {
+}) {
   return (
     <button
       type="button"

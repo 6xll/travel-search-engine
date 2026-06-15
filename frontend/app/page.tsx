@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { JourneyResults, SearchBanner } from "@/components/journey";
@@ -13,12 +14,31 @@ const DEFAULT_SEARCH: SearchValues = {
   origin: "Porto",
   destination: "Tokyo",
   date: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+  returnDate: new Date(Date.now() + 37 * 86_400_000).toISOString().slice(0, 10),
+  tripType: "one_way",
+  flexibleDays: 0,
   passengers: 1,
   preference: "balanced",
 };
 
+interface AdaptedLeg {
+  journeys: UIJourney[];
+  currencyFor: (journey: UIJourney) => string;
+}
+
+function adaptLeg(result: SearchResult | null): AdaptedLeg {
+  const currency = new Map<string, string>();
+  const journeys = (result?.journeys ?? []).map((journey: ApiJourney) => {
+    currency.set(journey.id, journey.currency);
+    return adaptJourney(journey);
+  });
+  return { journeys, currencyFor: (j) => currency.get(j.id) ?? "EUR" };
+}
+
 export default function HomePage() {
-  const [result, setResult] = useState<SearchResult | null>(null);
+  const [outbound, setOutbound] = useState<SearchResult | null>(null);
+  const [inbound, setInbound] = useState<SearchResult | null>(null);
+  const [lastSearch, setLastSearch] = useState<SearchValues | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -35,19 +55,39 @@ export default function HomePage() {
   const handleSearch = useCallback(async (values: SearchValues) => {
     setIsLoading(true);
     setHasSearched(true);
+    setLastSearch(values);
     setError(null);
     try {
-      setResult(
-        await searchJourneys({
-          origin: values.origin,
-          destination: values.destination,
-          departure_date: values.date,
-          passengers: values.passengers,
-          preference: values.preference,
-        }),
-      );
+      const base = {
+        passengers: values.passengers,
+        preference: values.preference,
+        flexible_days: values.flexibleDays,
+      };
+      const outboundPromise = searchJourneys({
+        ...base,
+        origin: values.origin,
+        destination: values.destination,
+        departure_date: values.date,
+      });
+      const inboundPromise =
+        values.tripType === "round_trip"
+          ? searchJourneys({
+              ...base,
+              origin: values.destination,
+              destination: values.origin,
+              departure_date: values.returnDate,
+            })
+          : Promise.resolve(null);
+
+      const [outboundResult, inboundResult] = await Promise.all([
+        outboundPromise,
+        inboundPromise,
+      ]);
+      setOutbound(outboundResult);
+      setInbound(inboundResult);
     } catch (caught) {
-      setResult(null);
+      setOutbound(null);
+      setInbound(null);
       setError(
         caught instanceof ApiError
           ? caught.message
@@ -66,17 +106,9 @@ export default function HomePage() {
     void handleSearch(DEFAULT_SEARCH);
   }, [handleSearch]);
 
-  // Map backend journeys to the UI schema, remembering currency per journey.
-  const { journeys, currencyById } = useMemo(() => {
-    const currencyMap = new Map<string, string>();
-    const adapted: UIJourney[] = (result?.journeys ?? []).map(
-      (journey: ApiJourney) => {
-        currencyMap.set(journey.id, journey.currency);
-        return adaptJourney(journey);
-      },
-    );
-    return { journeys: adapted, currencyById: currencyMap };
-  }, [result]);
+  const outboundLeg = useMemo(() => adaptLeg(outbound), [outbound]);
+  const inboundLeg = useMemo(() => adaptLeg(inbound), [inbound]);
+  const isRoundTrip = lastSearch?.tripType === "round_trip";
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
@@ -96,15 +128,69 @@ export default function HomePage() {
         onSearch={handleSearch}
       />
 
-      <section className="mt-8">
+      <section className="mt-8 space-y-10">
         <JourneyResults
-          journeys={journeys}
-          currencyFor={(journey) => currencyById.get(journey.id) ?? "EUR"}
+          journeys={outboundLeg.journeys}
+          currencyFor={outboundLeg.currencyFor}
           isLoading={isLoading}
           error={error}
           hasSearched={hasSearched}
+          heading={
+            isRoundTrip && lastSearch ? (
+              <LegHeading
+                Icon={PlaneTakeoff}
+                label="Outbound"
+                from={lastSearch.origin}
+                to={lastSearch.destination}
+              />
+            ) : undefined
+          }
         />
+
+        {isRoundTrip && lastSearch && (
+          <JourneyResults
+            journeys={inboundLeg.journeys}
+            currencyFor={inboundLeg.currencyFor}
+            isLoading={isLoading}
+            error={error}
+            hasSearched={hasSearched}
+            heading={
+              <LegHeading
+                Icon={PlaneLanding}
+                label="Return"
+                from={lastSearch.destination}
+                to={lastSearch.origin}
+              />
+            }
+          />
+        )}
       </section>
     </main>
+  );
+}
+
+function LegHeading({
+  Icon,
+  label,
+  from,
+  to,
+}: {
+  Icon: typeof PlaneTakeoff;
+  label: string;
+  from: string;
+  to: string;
+}) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <Icon className="size-4 text-indigo-600" aria-hidden />
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+        {label}
+      </h2>
+      <span className="flex items-center gap-1 text-sm text-slate-500">
+        {from}
+        <ArrowRight className="size-3.5 text-slate-400" aria-hidden />
+        {to}
+      </span>
+    </div>
   );
 }

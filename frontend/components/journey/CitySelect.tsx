@@ -16,6 +16,7 @@ interface CitySelectProps {
   cities: readonly string[];
   onChange: (city: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
 /** Labeled field that opens a scrollable, filterable city list. */
@@ -25,6 +26,7 @@ export function CitySelect({
   cities,
   onChange,
   placeholder = "Select city",
+  className = "",
 }: CitySelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -78,13 +80,13 @@ export function CitySelect({
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openList())}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="flex w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
       >
         <MapPin className="size-4 shrink-0 text-slate-400" aria-hidden />
         <span className="min-w-0">
