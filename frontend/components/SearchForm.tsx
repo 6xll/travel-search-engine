@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
+import { CityCombobox } from "@/components/CityCombobox";
 import type { SearchPreference, SearchRequestPayload } from "@/lib/types";
 
 interface SearchFormProps {
@@ -62,33 +63,21 @@ export function SearchForm({ cities, onSearch, isLoading }: SearchFormProps) {
       className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            From
-          </span>
-          <input
-            className={inputClasses}
-            list="city-options"
-            value={origin}
-            onChange={(event) => setOrigin(event.target.value)}
-            placeholder="Origin city"
-            required
-          />
-        </label>
+        <CityCombobox
+          label="From"
+          value={origin}
+          cities={cities}
+          onChange={setOrigin}
+          placeholder="Origin city"
+        />
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            To
-          </span>
-          <input
-            className={inputClasses}
-            list="city-options"
-            value={destination}
-            onChange={(event) => setDestination(event.target.value)}
-            placeholder="Destination city"
-            required
-          />
-        </label>
+        <CityCombobox
+          label="To"
+          value={destination}
+          cities={cities}
+          onChange={setDestination}
+          placeholder="Destination city"
+        />
 
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -150,12 +139,6 @@ export function SearchForm({ cities, onSearch, isLoading }: SearchFormProps) {
           />
         </label>
       </div>
-
-      <datalist id="city-options">
-        {cities.map((city) => (
-          <option key={city} value={city} />
-        ))}
-      </datalist>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
         <div
